@@ -18,8 +18,6 @@ RaftNode::RaftNode(std::string nodeId,
       peerAddrs(peers),
       logger("node_" + nodeId + ".log")
 {
-    RaftRpc::init(port, this); // start RPC server
-    logger.info("Node starting as follower.");
 }
 
 void RaftNode::start() {
