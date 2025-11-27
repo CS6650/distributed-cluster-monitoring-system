@@ -1,13 +1,45 @@
+# CXX = g++
+# CXXFLAGS = -std=c++17 -pthread -Wall
+
+# all: manager worker
+
+# manager: manager.cpp logger.cpp
+# 	$(CXX) $(CXXFLAGS) -o manager manager.cpp logger.cpp
+
+# worker: worker.cpp logger.cpp
+# 	$(CXX) $(CXXFLAGS) -o worker worker.cpp logger.cpp
+
+# clean:
+# 	rm -f manager worker *.log
+
+
+# Makefile for RAFT Manager and Worker
+
 CXX = g++
-CXXFLAGS = -std=c++17 -pthread -Wall
+CXXFLAGS = -std=c++17 -pthread -Wall -O2
 
-all: manager worker
+# Source files
+COMMON_SRC = common/logger.cpp common/rpc.cpp
+MANAGER_SRC = server/raft_node.cpp server/raft_rpc.cpp server/state_machine.cpp server/main.cpp $(COMMON_SRC)
+WORKER_SRC = worker/main.cpp common/logger.cpp
 
-manager: manager.cpp logger.cpp
-	$(CXX) $(CXXFLAGS) -o manager manager.cpp logger.cpp
+# Executables
+MANAGER_BIN = manager
+WORKER_BIN = worker
 
-worker: worker.cpp logger.cpp
-	$(CXX) $(CXXFLAGS) -o worker worker.cpp logger.cpp
+.PHONY: all clean
 
+# Default target
+all: $(MANAGER_BIN) $(WORKER_BIN)
+
+# Compile manager
+$(MANAGER_BIN): $(MANAGER_SRC)
+	$(CXX) $(CXXFLAGS) $(MANAGER_SRC) -o $(MANAGER_BIN)
+
+# Compile worker
+$(WORKER_BIN): $(WORKER_SRC)
+	$(CXX) $(CXXFLAGS) $(WORKER_SRC) -o $(WORKER_BIN)
+
+# Clean binaries
 clean:
-	rm -f manager worker *.log
+	rm -f $(MANAGER_BIN) $(WORKER_BIN)
