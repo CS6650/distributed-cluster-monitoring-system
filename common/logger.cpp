@@ -28,6 +28,12 @@ void Logger::warn(const std::string &msg) {
     std::cout << "[WARN] " << msg << std::endl;
 }
 
+void Logger::debug(const std::string &msg) {
+    std::lock_guard<std::mutex> lock(mtx);
+    file << "[" << now() << "] [DEBUG] " << msg << "\n";
+    std::cout << "[DEBUG] " << msg << std::endl;
+}
+
 void Logger::error(const std::string &msg) {
     std::lock_guard<std::mutex> lock(mtx);
     file << "[" << now() << "] [ERROR] " << msg << "\n";

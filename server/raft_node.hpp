@@ -10,6 +10,8 @@
 #include "../common/logger.hpp"
 #include "../common/timer.hpp"
 #include "../common/rpc.hpp"
+#include "../common/thread_pool.hpp"
+
 using json = nlohmann::json;
 
 enum class Role {
@@ -32,6 +34,7 @@ public:
     std::string getId() const { return id; }
     void start();
     
+    ThreadPool rpcPool;
     // -------------------------------------------------
     // RPC handlers
     // -------------------------------------------------
