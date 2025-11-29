@@ -1,7 +1,7 @@
 # Makefile for RAFT Manager and Worker
 
 CXX = g++
-CXXFLAGS = -std=c++17 -pthread -Wall -O2
+CXXFLAGS = -std=c++17 -pthread -Wall -O2 -g
 
 # Source files
 COMMON_SRC = common/logger.cpp common/rpc.cpp

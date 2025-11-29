@@ -19,23 +19,27 @@ Logger::~Logger() {
 void Logger::info(const std::string &msg) {
     std::lock_guard<std::mutex> lock(mtx);
     file << "[" << now() << "] [INFO] " << msg << "\n";
+    file.flush();
     std::cout << "[INFO] " << msg << std::endl;
 }
 
 void Logger::warn(const std::string &msg) {
     std::lock_guard<std::mutex> lock(mtx);
     file << "[" << now() << "] [WARN] " << msg << "\n";
+    file.flush();
     std::cout << "[WARN] " << msg << std::endl;
 }
 
 void Logger::debug(const std::string &msg) {
     std::lock_guard<std::mutex> lock(mtx);
     file << "[" << now() << "] [DEBUG] " << msg << "\n";
+    file.flush();
     std::cout << "[DEBUG] " << msg << std::endl;
 }
 
 void Logger::error(const std::string &msg) {
     std::lock_guard<std::mutex> lock(mtx);
     file << "[" << now() << "] [ERROR] " << msg << "\n";
+    file.flush();
     std::cerr << "[ERROR] " << msg << std::endl;
 }
