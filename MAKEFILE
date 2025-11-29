@@ -1,7 +1,22 @@
+# CXX = g++
+# CXXFLAGS = -std=c++17 -pthread -Wall
+
+# all: manager worker
+
+# manager: manager.cpp logger.cpp
+# 	$(CXX) $(CXXFLAGS) -o manager manager.cpp logger.cpp
+
+# worker: worker.cpp logger.cpp
+# 	$(CXX) $(CXXFLAGS) -o worker worker.cpp logger.cpp
+
+# clean:
+# 	rm -f manager worker *.log
+
+
 # Makefile for RAFT Manager and Worker
 
 CXX = g++
-CXXFLAGS = -std=c++17 -pthread -Wall -O2 -g
+CXXFLAGS = -std=c++17 -pthread -Wall -O2
 
 # Source files
 COMMON_SRC = common/logger.cpp common/rpc.cpp
@@ -27,4 +42,4 @@ $(WORKER_BIN): $(WORKER_SRC)
 
 # Clean binaries
 clean:
-	rm -f $(MANAGER_BIN) $(WORKER_BIN)
+	rm -f $(MANAGER_BIN) $(WORKER_BIN) *.log
