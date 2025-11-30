@@ -2,14 +2,14 @@
   "workers": [
     {
       "id": "worker1",
-      "online": true,
-      "last_seen_seconds_ago": 1,
+      "online": false,
+      "last_seen_seconds_ago": 446,
       "status": "active"
     },
     {
       "id": "worker2",
-      "online": true,
-      "last_seen_seconds_ago": 4,
+      "online": false,
+      "last_seen_seconds_ago": 445,
       "status": "active"
     }
   ]

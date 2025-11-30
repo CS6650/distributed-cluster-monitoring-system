@@ -157,48 +157,7 @@ public:
         return role == Role::LEADER;
     }
 
-    // -------------------------------------------------
-    // NEW: Client command submission
-    // -------------------------------------------------
-
-    /**
-     * @brief Submit a command to be replicated through RAFT
-     *
-     * This is the entry point for clients to submit commands.
-     * Only the leader can accept commands. Commands are:
-     * 1. Appended to the leader's log
-     * 2. Replicated to followers
-     * 3. Applied to state machine once committed
-     *
-     * @param command The command string (typically JSON)
-     * @return true if command was accepted (node is leader), false otherwise
-     */
-    bool submitCommand(const std::string &command)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-
-        if (role != Role::LEADER)
-        {
-            logger.warn("submitCommand rejected: not leader");
-            return false;
-        }
-
-        // Append to local log
-        LogEntry entry;
-        entry.term = currentTerm;
-        entry.command = command;
-        log.push_back(entry);
-
-        logger.info("Command submitted to log at index " +
-                    std::to_string(log.size() - 1) +
-                    ": " + command);
-
-        // Trigger replication to followers
-        // Note: We call replicateLogInternal which assumes lock is held
-        replicateLogInternal();
-
-        return true;
-    }
+    bool submitCommand(const std::string &command);
 
     // Public method to access state machine (for client queries)
     std::string query(const std::string &key)
@@ -217,6 +176,8 @@ public:
     {
         return stateMachine.getNodeState(nodeId);
     }
+
+    ~RaftNode();
 
 private:
     // Identity
@@ -248,6 +209,16 @@ private:
     Timer electionTimer;
     Timer heartbeatTimer;
     Logger logger;
+
+    // Discovery service management
+    std::atomic<int> discoverySocket{-1};
+    std::thread discoveryThread;
+    std::atomic<bool> runningDiscoveryService{false};
+    std::mutex discoveryMutex;
+
+    void startDiscoveryService();
+    void stopDiscoveryService();
+    void runDiscoveryService();
 
     // Internal methods - ALL called with lock held
     void becomeFollower(int term);

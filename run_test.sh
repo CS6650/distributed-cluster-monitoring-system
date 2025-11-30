@@ -18,7 +18,8 @@ WORKERS=("worker1" "worker2")
 # Start Managers
 echo "Starting manager nodes..."
 for i in ${!NODES[@]}; do
-    gnome-terminal -- bash -c "./manager ${NODES[$i]} ${PORTS[$i]} ${PEERS[$i]}; exec bash"
+    # gnome-terminal -- bash -c "./manager ${NODES[$i]} ${PORTS[$i]} ${PEERS[$i]}; exec bash"
+    osascript -e "tell application \"Terminal\" to do script \"cd $(pwd) && ./manager ${NODES[$i]} ${PORTS[$i]} ${PEERS[$i]}\""
 done
 
 # Give managers some time to start
@@ -27,7 +28,8 @@ sleep 2
 # Start Workers
 echo "Starting workers..."
 for worker in "${WORKERS[@]}"; do
-    gnome-terminal -- bash -c "./worker $worker; exec bash"
+    # gnome-terminal -- bash -c "./worker $worker; exec bash"
+    osascript -e "tell application \"Terminal\" to do script \"cd $(pwd) && ./worker_bin $worker\""
 done
 
 echo "All managers and workers started."

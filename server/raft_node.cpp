@@ -3,12 +3,17 @@
 #include <chrono>
 #include <random>
 #include <algorithm>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 static int randomTimeout()
 {
     // Random election timeout between 300–500 ms
     static std::mt19937 rng(std::random_device{}());
-    std::uniform_int_distribution<int> dist(3000, 5000);
+    std::uniform_int_distribution<int> dist(300, 500);
     return dist(rng);
 }
 
@@ -35,6 +40,188 @@ void RaftNode::start()
     resetElectionTimer();
 }
 
+RaftNode::~RaftNode()
+{
+    stopDiscoveryService();
+
+    // Wait for discovery thread to finish
+    if (discoveryThread.joinable())
+    {
+        discoveryThread.join();
+    }
+}
+
+void RaftNode::startDiscoveryService()
+{
+    std::lock_guard<std::mutex> lock(discoveryMutex);
+
+    // Already running - don't start another
+    if (runningDiscoveryService)
+    {
+        logger.info("Discovery service already running");
+        return;
+    }
+
+    const int DISCOVERY_PORT = 6000;
+
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0)
+    {
+        logger.warn("Failed to create discovery socket");
+        return;
+    }
+
+    // Enable address reuse to avoid TIME_WAIT issues
+    int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+#ifdef SO_REUSEPORT
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+#endif
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(DISCOVERY_PORT);
+
+    if (bind(server_fd, (sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        logger.warn("Failed to bind discovery port 6000 (another leader may be active)");
+        close(server_fd);
+        return;
+    }
+
+    if (listen(server_fd, 16) < 0)
+    {
+        logger.warn("Failed to listen on discovery port");
+        close(server_fd);
+        return;
+    }
+
+    discoverySocket = server_fd;
+    runningDiscoveryService = true;
+
+    logger.info("✓ Leader discovery service started on port 6000");
+
+    // Start discovery thread (joinable, not detached)
+    if (discoveryThread.joinable())
+    {
+        discoveryThread.join(); // Clean up old thread if exists
+    }
+
+    discoveryThread = std::thread(&RaftNode::runDiscoveryService, this);
+}
+
+void RaftNode::stopDiscoveryService()
+{
+    std::lock_guard<std::mutex> lock(discoveryMutex);
+
+    if (!runningDiscoveryService)
+    {
+        return;
+    }
+
+    logger.info("✗ Stopping discovery service (no longer leader)");
+
+    runningDiscoveryService = false;
+
+    // Close socket to unblock accept()
+    int sock = discoverySocket.exchange(-1);
+    if (sock >= 0)
+    {
+        shutdown(sock, SHUT_RDWR); // Force immediate close
+        close(sock);
+    }
+}
+
+void RaftNode::runDiscoveryService()
+{
+    int serverSocket = discoverySocket;
+
+    while (runningDiscoveryService && serverSocket >= 0)
+    {
+        sockaddr_in client;
+        socklen_t len = sizeof(client);
+
+        int client_fd = accept(serverSocket, (sockaddr *)&client, &len);
+
+        if (client_fd < 0)
+        {
+            if (!runningDiscoveryService)
+            {
+                break; // Clean shutdown
+            }
+            // Accept failed, check if socket is still valid
+            if (discoverySocket == -1)
+            {
+                break;
+            }
+            continue;
+        }
+
+        // Set timeout on client socket
+        struct timeval timeout;
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+        setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
+        // Handle connection in separate thread
+        std::thread([this, client_fd]()
+                    {
+            char buffer[1024];
+            memset(buffer, 0, sizeof(buffer));
+            
+            ssize_t n = read(client_fd, buffer, sizeof(buffer) - 1);
+            
+            if (n > 0) {
+                std::string msg(buffer);
+                
+                if (msg.find("HEARTBEAT") == 0) {
+                    size_t spacePos = msg.find(' ');
+                    if (spacePos != std::string::npos) {
+                        std::string workerId = msg.substr(spacePos + 1);
+                        workerId.erase(workerId.find_last_not_of(" \n\r\t") + 1);
+                        
+                        // Thread-safe check: Are we still the leader?
+                        bool isLeader = (role.load() == Role::LEADER);
+                        
+                        if (isLeader) {
+                            // Create heartbeat command
+                            json command = {
+                                {"action", "HEARTBEAT"},
+                                {"node_id", workerId},
+                                {"timestamp", std::time(nullptr)}
+                            };
+                            
+                            // Submit to RAFT log (this method handles its own locking)
+                            bool success = submitCommand(command.dump());
+                            
+                            if (success) {
+                                logger.info("Heartbeat from " + workerId + " submitted to RAFT log");
+                                std::string response = "ACK\n";
+                                send(client_fd, response.c_str(), response.size(), 0);
+                            } else {
+                                logger.warn("Failed to submit heartbeat to RAFT");
+                                std::string response = "ERROR\n";
+                                send(client_fd, response.c_str(), response.size(), 0);
+                            }
+                        } else {
+                            // Lost leadership while processing
+                            std::string response = "NOT_LEADER\n";
+                            send(client_fd, response.c_str(), response.size(), 0);
+                        }
+                    }
+                }
+            }
+            
+            close(client_fd); })
+            .detach(); // These handler threads can be detached since they're short-lived
+    }
+
+    logger.info("Discovery service thread exiting");
+}
+
 void RaftNode::resetElectionTimer()
 {
     // Must be called WITH lock held
@@ -56,6 +243,8 @@ void RaftNode::resetElectionTimer()
 void RaftNode::becomeFollower(int term)
 {
     // Must be called WITH lock held
+    bool wasLeader = (role == Role::LEADER);
+
     role = Role::FOLLOWER;
     currentTerm = term;
     votedFor = "";
@@ -64,6 +253,16 @@ void RaftNode::becomeFollower(int term)
 
     // Reset election timer when becoming follower
     resetElectionTimer();
+
+    // Stop discovery service AFTER releasing the lock to avoid deadlock
+    // We set the flag above so no new heartbeats are accepted
+    if (wasLeader)
+    {
+        // Unlock mutex before stopping discovery service
+        mtx.unlock();
+        stopDiscoveryService();
+        mtx.lock();
+    }
 }
 
 void RaftNode::becomeCandidate()
@@ -196,6 +395,39 @@ void RaftNode::becomeLeaderInternal()
 
     // Send immediate heartbeat, then start periodic timer
     sendHeartbeatsInternal();
+
+    // Start discovery service AFTER releasing lock to avoid blocking
+    // We need to unlock, start service, then relock
+    mtx.unlock();
+    startDiscoveryService();
+    mtx.lock();
+}
+
+bool RaftNode::submitCommand(const std::string &command)
+{
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (role != Role::LEADER)
+    {
+        logger.warn("submitCommand rejected: not leader");
+        return false;
+    }
+
+    // Append to local log
+    LogEntry entry;
+    entry.term = currentTerm;
+    entry.command = command;
+    log.push_back(entry);
+
+    logger.info("Command submitted to log at index " +
+                std::to_string(log.size() - 1) +
+                ": " + command);
+
+    // Trigger replication to followers
+    // Note: We call replicateLogInternal which assumes lock is held
+    replicateLogInternal();
+
+    return true;
 }
 
 json RaftNode::onRequestVote(const json &req)
