@@ -10,7 +10,8 @@
 
 using json = nlohmann::json;
 
-class JsonRpcServer {
+class JsonRpcServer
+{
     int port;
     int server_fd;
     std::map<std::string, std::function<json(json)>> handlers;
@@ -18,6 +19,7 @@ class JsonRpcServer {
 
 public:
     JsonRpcServer(int port);
+    ~JsonRpcServer();
     void start();
     void registerMethod(const std::string &name,
                         std::function<json(json)> fn);
@@ -26,7 +28,8 @@ private:
     void handleClient(int client_fd);
 };
 
-class JsonRpcClient {
+class JsonRpcClient
+{
 public:
     static json call(const std::string &host, int port,
                      const std::string &method,

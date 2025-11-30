@@ -42,4 +42,8 @@ $(WORKER_BIN): $(WORKER_SRC)
 
 # Clean binaries
 clean:
-	rm -f $(MANAGER_BIN) $(WORKER_BIN) *.log
+	rm -f $(MANAGER_BIN) $(WORKER_BIN) *.log *.json
+
+cleanlog:
+	rm -f *.log *.json
+
