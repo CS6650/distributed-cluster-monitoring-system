@@ -1051,7 +1051,9 @@ void RaftNode::startDiscoveryService()
         return;
     }
 
-    const int DISCOVERY_PORT = 6000;
+    // const int DISCOVERY_PORT = 6000;
+    int DISCOVERY_PORT = port + 1000; // Example: 5001 -> 6001
+
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0)
