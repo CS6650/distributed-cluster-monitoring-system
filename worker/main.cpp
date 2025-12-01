@@ -12,6 +12,7 @@ const int LEADER_PORT = 6000; // leader discovery port
 void sendHeartbeat(const std::string &nodeId, Logger &logger)
 {
     int failureCount = 0;
+    bool wasConnected = false;
 
     while (true)
     {
@@ -55,24 +56,34 @@ void sendHeartbeat(const std::string &nodeId, Logger &logger)
                     if (response.find("ACK") != std::string::npos)
                     {
                         logger.info("Heartbeat sent from " + nodeId + " - ACK received");
-                        failureCount = 0; // Reset failure counter
+                        // failureCount = 0; // Reset failure counter
+                        if (!wasConnected) {
+                            std::cout << " [CONNECTED] " << nodeId 
+                                      << " connected to leader\n" << std::flush;
+                            wasConnected = true;
+                        }
+                        
+                        failureCount = 0;
                     }
                     else if (response.find("NOT_LEADER") != std::string::npos)
                     {
                         logger.warn("Connected node is not the leader - waiting for leader election");
                         failureCount++;
+                        wasConnected = false; 
                     }
                 }
                 else
                 {
                     logger.warn("No response from leader");
                     failureCount++;
+                    wasConnected = false; 
                 }
             }
             else
             {
                 logger.warn("Failed to send heartbeat");
                 failureCount++;
+                wasConnected = false; 
             }
         }
         else
@@ -81,6 +92,11 @@ void sendHeartbeat(const std::string &nodeId, Logger &logger)
                         std::to_string(LEADER_PORT) + " (attempt " +
                         std::to_string(failureCount + 1) + ")");
             failureCount++;
+            if (wasConnected) {
+                std::cout << "[DISCONNECTED] " << nodeId 
+                          << " lost connection to leader\n" << std::flush;
+                wasConnected = false;
+            }
         }
 
         close(sock);
@@ -102,17 +118,33 @@ int main(int argc, char *argv[])
 
     std::string nodeId = argv[1];
     Logger logger(nodeId + ".log");
-    logger.info("Worker started with node ID: " + nodeId);
-    std::cout << "[INFO] Worker " << nodeId << " starting - will connect to leader at "
-              << LEADER_HOST << ":" << LEADER_PORT << "\n";
+    
+    std::cout << "[STARTUP] Worker " << nodeId << " starting\n";
+    std::cout << "[READY] Sending heartbeats to port 6000. Check " 
+              << nodeId << ".log for details.\n";
 
     std::thread(sendHeartbeat, nodeId, std::ref(logger)).detach();
 
-    // Keep main thread alive
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::seconds(60));
     }
 
     return 0;
+
+    // std::string nodeId = argv[1];
+    // Logger logger(nodeId + ".log");
+    // logger.info("Worker started with node ID: " + nodeId);
+    // std::cout << "[INFO] Worker " << nodeId << " starting - will connect to leader at "
+    //           << LEADER_HOST << ":" << LEADER_PORT << "\n";
+
+    // std::thread(sendHeartbeat, nodeId, std::ref(logger)).detach();
+
+    // // Keep main thread alive
+    // while (true)
+    // {
+    //     std::this_thread::sleep_for(std::chrono::seconds(60));
+    // }
+
+    // return 0;
 }

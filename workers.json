@@ -1,0 +1,16 @@
+{
+  "workers": [
+    {
+      "id": "worker1",
+      "online": true,
+      "last_seen_seconds_ago": 9,
+      "status": "active"
+    },
+    {
+      "id": "worker2",
+      "online": true,
+      "last_seen_seconds_ago": 7,
+      "status": "active"
+    }
+  ]
+}

@@ -150,7 +150,7 @@ void JsonRpcServer::start()
         throw std::runtime_error("Failed to listen on port " + std::to_string(port));
     }
 
-    std::cout << "JsonRpcServer listening on port " << port << std::endl;
+    // std::cout << "JsonRpcServer listening on port " << port << std::endl;
 
     // Accept loop in detached thread
     std::thread([this]()

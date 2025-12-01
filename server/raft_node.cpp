@@ -1090,7 +1090,10 @@ void RaftNode::startDiscoveryService()
     discoverySocket = server_fd;
     runningDiscoveryService = true;
 
+
     logger.info("✓ Leader discovery service started on port 6000");
+    std::cout << "✓ [DISCOVERY] " << id << " now accepting worker connections on port 6000\n" 
+              << std::flush;
 
     // Start discovery thread (joinable, not detached)
     if (discoveryThread.joinable())
@@ -1111,6 +1114,9 @@ void RaftNode::stopDiscoveryService()
     }
 
     logger.info("✗ Stopping discovery service (no longer leader)");
+
+    std::cout << "✗ [DISCOVERY] " << id << " stopped accepting worker connections\n" 
+              << std::flush;
 
     runningDiscoveryService = false;
 
@@ -1371,6 +1377,8 @@ void RaftNode::becomeLeaderInternal()
     role = Role::LEADER;
 
     logger.info("Transition -> LEADER (term " + std::to_string(currentTerm) + ")");
+    std::cout << "✓ [LEADER] " << id << " elected as leader (term " 
+              << currentTerm << ")\n" << std::flush;
 
     // Initialize leader state
     for (const auto &peerSpec : peerAddrs)

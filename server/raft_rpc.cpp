@@ -34,8 +34,8 @@ void RaftRpc::init(int port, RaftNode *node)
 {
     registry[node->getId()] = port;
 
-    std::cout << "Initializing RPC server for " << node->getId()
-              << " on port " << port << std::endl;
+    // std::cout << "Initializing RPC server for " << node->getId()
+    //           << " on port " << port << std::endl;
 
     // Create and configure server
     JsonRpcServer *srv = new JsonRpcServer(port);
