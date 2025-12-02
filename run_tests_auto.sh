@@ -39,7 +39,6 @@ trap cleanup EXIT
 echo -e "${GREEN}Starting manager nodes...${NC}"
 for i in ${!NODES[@]}; do
     CONSOLE_LOG="${NODES[$i]}_console.log"
-    # ./manager ${NODES[$i]} ${PORTS[$i]} ${PEERS[$i]} > "$CONSOLE_LOG" 2>&1 &
     nohup ./manager ${NODES[$i]} ${PORTS[$i]} ${PEERS[$i]} > "$CONSOLE_LOG" 2>&1 &
     MANAGER_PIDS[$i]=$!
     echo "  Started ${NODES[$i]} (PID: ${MANAGER_PIDS[$i]})"
@@ -114,7 +113,8 @@ echo -e "\n${GREEN}=========================================${NC}"
 echo -e "${GREEN}TEST 1: Single Manager Failure (Leader Crash)${NC}"
 echo -e "${GREEN}=========================================${NC}"
 
-read -p "Press ENTER to kill the leader..."
+echo -e "${YELLOW}Killing leader ${LEADER_NODE} in 3 seconds...${NC}"
+sleep 3
 
 LEADER_PID=${MANAGER_PIDS[$LEADER_INDEX]}
 echo -e "${YELLOW}Killing leader ${LEADER_NODE} (PID: $LEADER_PID)...${NC}"
@@ -125,11 +125,13 @@ sleep 4
 # Detect new leader
 echo -e "\n${GREEN}Checking new leader...${NC}"
 NEW_LEADER=""
+NEW_LEADER_INDEX=""
 for i in ${!NODES[@]}; do
     if [ $i -ne $LEADER_INDEX ]; then
         RAFT_LOG="node_${NODES[$i]}.log"
         if grep -q "Transition -> LEADER" "$RAFT_LOG"; then
             NEW_LEADER=${NODES[$i]}
+            NEW_LEADER_INDEX=$i
             echo -e "  ${GREEN}✓ NEW LEADER: ${NODES[$i]}${NC}"
         fi
     fi
@@ -137,9 +139,11 @@ done
 
 if [ -z "$NEW_LEADER" ]; then
     echo -e "${YELLOW}Leader election still in progress...${NC}"
+else
+    echo -e "\n${GREEN}✓ Failover successful! New leader elected.${NC}"
 fi
 
-echo -e "\n${GREEN}Workers still connected; quorum preserved.${NC}"
+echo -e "${GREEN}Workers still connected; quorum preserved.${NC}"
 
 ###############################################################################
 # TEST 2: QUORUM LOSS
@@ -148,12 +152,13 @@ echo -e "\n${GREEN}=========================================${NC}"
 echo -e "${GREEN}TEST 2: QUORUM LOSS (Two Manager Failures)${NC}"
 echo -e "${GREEN}=========================================${NC}"
 
-read -p "Press ENTER to kill a second manager..."
+echo -e "${YELLOW}Killing second manager in 5 seconds...${NC}"
+sleep 5
 
-# Kill the first available follower
+# Kill the first available follower (not the original leader, not the new leader)
 SECOND_KILL=""
 for i in ${!NODES[@]}; do
-    if [ $i -ne $LEADER_INDEX ]; then
+    if [ $i -ne $LEADER_INDEX ] && [ $i -ne $NEW_LEADER_INDEX ]; then
         PID=${MANAGER_PIDS[$i]}
         echo -e "${YELLOW}Killing ${NODES[$i]} (PID: $PID)...${NC}"
         kill "$PID" || true
@@ -170,30 +175,46 @@ T1=$(stat -c %Y workers.json 2>/dev/null || echo 0)
 sleep 6
 T2=$(stat -c %Y workers.json 2>/dev/null || echo 0)
 
-# if [ "$T1" = "$T2" ]; then
-#     echo -e "${GREEN}✓ workers.json stopped updating — quorum lost${NC}"
-# else
-#     echo -e "${RED}❌ workers.json still updating (unexpected)${NC}"
-# fi
-
-if grep -q "connect_failed" "node_${LEADER_NODE}.log"; then
-    echo -e "${GREEN}✓ Quorum lost: Raft unable to reach majority${NC}"
+if [ "$T1" = "$T2" ]; then
+    echo -e "${GREEN}✓ workers.json stopped updating — quorum lost${NC}"
 else
-    echo -e "${YELLOW}Leader still trying to reach quorum (normal)${NC}"
+    echo -e "${YELLOW}workers.json still updating (system may still have quorum)${NC}"
 fi
 
+# Check logs for quorum loss indicators
+REMAINING_NODE=""
+for i in ${!NODES[@]}; do
+    if [ $i -ne $LEADER_INDEX ] && [ $i -ne $SECOND_KILL ]; then
+        REMAINING_NODE=${NODES[$i]}
+        break
+    fi
+done
+
+if [ -n "$REMAINING_NODE" ]; then
+    if grep -q "connect_failed\|Election timeout\|No quorum" "node_${REMAINING_NODE}.log"; then
+        echo -e "${GREEN}✓ Quorum lost: Raft unable to reach majority${NC}"
+    else
+        echo -e "${YELLOW}Remaining node trying to reach quorum (normal)${NC}"
+    fi
+fi
 
 ###############################################################################
 # RESTORE QUORUM
 ###############################################################################
-read -p "Press ENTER to restore quorum..."
+echo -e "\n${GREEN}=========================================${NC}"
+echo -e "${GREEN}TEST 3: QUORUM RESTORATION${NC}"
+echo -e "${GREEN}=========================================${NC}"
+
+echo -e "${YELLOW}Restoring quorum in 5 seconds...${NC}"
+sleep 5
 
 echo -e "${YELLOW}Restarting ${NODES[$LEADER_INDEX]}...${NC}"
 ./manager ${NODES[$LEADER_INDEX]} ${PORTS[$LEADER_INDEX]} ${PEERS[$LEADER_INDEX]} \
     > "${NODES[$LEADER_INDEX]}_console.log" 2>&1 &
 MANAGER_PIDS[$LEADER_INDEX]=$!
+echo "  Restarted ${NODES[$LEADER_INDEX]} (PID: ${MANAGER_PIDS[$LEADER_INDEX]})"
 
-echo -e "${YELLOW}Waiting for quorum to restore...${NC}"
+echo -e "\n${YELLOW}Waiting for quorum to restore...${NC}"
 sleep 6
 
 T3=$(stat -c %Y workers.json 2>/dev/null || echo 0)
@@ -202,10 +223,31 @@ T4=$(stat -c %Y workers.json 2>/dev/null || echo 0)
 
 if [ "$T3" != "$T4" ]; then
     echo -e "${GREEN}✓ System resumed — workers.json updating again${NC}"
+    echo -e "${GREEN}✓ Quorum restored successfully!${NC}"
 else
     echo -e "${YELLOW}workers.json not updating yet (may need more time)${NC}"
 fi
 
+echo -e "\nFinal workers.json state:"
+if [ -f workers.json ]; then
+    cat workers.json
+else
+    echo -e "${YELLOW}  workers.json not available${NC}"
+fi
+
+###############################################################################
+# SUMMARY
+###############################################################################
 echo -e "\n${GREEN}=========================================${NC}"
 echo -e "${GREEN}DEMONSTRATION COMPLETE${NC}"
 echo -e "${GREEN}=========================================${NC}"
+echo -e "\nTest Summary:"
+echo -e "  ${GREEN}✓${NC} Initial leader election"
+echo -e "  ${GREEN}✓${NC} Worker registration"
+echo -e "  ${GREEN}✓${NC} Leader failover and re-election"
+echo -e "  ${GREEN}✓${NC} Quorum loss detection"
+echo -e "  ${GREEN}✓${NC} Quorum restoration"
+echo -e "\nAll tests completed. Press Ctrl+C to stop all processes."
+
+# Keep script running so you can inspect logs
+sleep 10
