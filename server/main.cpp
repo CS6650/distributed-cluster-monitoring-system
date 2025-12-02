@@ -104,32 +104,6 @@ int main(int argc, char *argv[])
     }
 
     return 0;
-
-    // std::cout << "[INFO] Starting manager node: " << nodeId
-    //           << " on Raft port: " << port << "\n";
-    // if (!peers.empty())
-    // {
-    //     std::cout << "[INFO] Peers: ";
-    //     for (const auto &p : peers)
-    //         std::cout << p << " ";
-    //     std::cout << "\n";
-    // }
-
-    // RaftNode node(nodeId, port, peers);
-    // node.start();
-
-    // // Discovery service is now managed automatically by the RaftNode
-    // // It starts when the node becomes leader and stops when it steps down
-
-    // // Start worker status report generator
-    // std::thread(generateWorkerStatusReport, &node).detach();
-
-    // while (true)
-    // {
-    //     std::this_thread::sleep_for(std::chrono::seconds(5));
-    // }
-
-    // return 0;
 }
 
 
