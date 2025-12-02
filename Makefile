@@ -1,18 +1,3 @@
-# CXX = g++
-# CXXFLAGS = -std=c++17 -pthread -Wall
-
-# all: manager worker
-
-# manager: manager.cpp logger.cpp
-# 	$(CXX) $(CXXFLAGS) -o manager manager.cpp logger.cpp
-
-# worker: worker.cpp logger.cpp
-# 	$(CXX) $(CXXFLAGS) -o worker worker.cpp logger.cpp
-
-# clean:
-# 	rm -f manager worker *.log
-
-
 # Makefile for RAFT Manager and Worker
 
 CXX = g++

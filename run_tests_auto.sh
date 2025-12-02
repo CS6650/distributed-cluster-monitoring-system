@@ -17,9 +17,9 @@ make
 NODES=("node1" "node2" "node3")
 PORTS=(5001 5002 5003)
 PEERS=(
-    "127.0.0.1:5002,127.0.0.1:5003"
-    "127.0.0.1:5001,127.0.0.1:5003"
-    "127.0.0.1:5001,127.0.0.1:5002"
+    "node2:5002,node3:5003"
+    "node1:5001,node3:5003"
+    "node1:5001,node2:5002"
 )
 
 WORKERS=("worker1" "worker2")
@@ -89,11 +89,12 @@ fi
 
 # --- Start Workers ---
 echo -e "\n${GREEN}Starting workers...${NC}"
-for worker in "${WORKERS[@]}"; do
+for idx in ${!WORKERS[@]}; do
+    worker=${WORKERS[$idx]}
     LOG="${worker}_console.log"
     ./worker_bin "$worker" > "$LOG" 2>&1 &
-    WORKER_PIDS+=($!)
-    echo "  Started $worker (PID: ${WORKER_PIDS[-1]})"
+    WORKER_PIDS[$idx]=$!
+    echo "  Started $worker (PID: ${WORKER_PIDS[$idx]})"
 done
 
 echo -e "\n${YELLOW}Waiting for workers to connect...${NC}"
@@ -158,7 +159,7 @@ sleep 5
 # Kill the first available follower (not the original leader, not the new leader)
 SECOND_KILL=""
 for i in ${!NODES[@]}; do
-    if [ $i -ne $LEADER_INDEX ] && [ $i -ne $NEW_LEADER_INDEX ]; then
+    if [ $i -ne $LEADER_INDEX ] && [ "$i" != "$NEW_LEADER_INDEX" ]; then
         PID=${MANAGER_PIDS[$i]}
         echo -e "${YELLOW}Killing ${NODES[$i]} (PID: $PID)...${NC}"
         kill "$PID" || true
@@ -171,20 +172,24 @@ echo -e "\n${YELLOW}Waiting to observe quorum loss...${NC}"
 sleep 6
 
 # workers.json freeze detection
-T1=$(stat -c %Y workers.json 2>/dev/null || echo 0)
-sleep 6
-T2=$(stat -c %Y workers.json 2>/dev/null || echo 0)
+if [ -f workers.json ]; then
+    T1=$(stat -f %m workers.json 2>/dev/null || stat -c %Y workers.json 2>/dev/null || echo 0)
+    sleep 6
+    T2=$(stat -f %m workers.json 2>/dev/null || stat -c %Y workers.json 2>/dev/null || echo 0)
 
-if [ "$T1" = "$T2" ]; then
-    echo -e "${GREEN}✓ workers.json stopped updating — quorum lost${NC}"
+    if [ "$T1" = "$T2" ]; then
+        echo -e "${GREEN}✓ workers.json stopped updating — quorum lost${NC}"
+    else
+        echo -e "${YELLOW}workers.json still updating (system may still have quorum)${NC}"
+    fi
 else
-    echo -e "${YELLOW}workers.json still updating (system may still have quorum)${NC}"
+    echo -e "${YELLOW}workers.json not found${NC}"
 fi
 
 # Check logs for quorum loss indicators
 REMAINING_NODE=""
 for i in ${!NODES[@]}; do
-    if [ $i -ne $LEADER_INDEX ] && [ $i -ne $SECOND_KILL ]; then
+    if [ "$i" != "$LEADER_INDEX" ] && [ "$i" != "$SECOND_KILL" ]; then
         REMAINING_NODE=${NODES[$i]}
         break
     fi
@@ -217,15 +222,17 @@ echo "  Restarted ${NODES[$LEADER_INDEX]} (PID: ${MANAGER_PIDS[$LEADER_INDEX]})"
 echo -e "\n${YELLOW}Waiting for quorum to restore...${NC}"
 sleep 6
 
-T3=$(stat -c %Y workers.json 2>/dev/null || echo 0)
-sleep 6
-T4=$(stat -c %Y workers.json 2>/dev/null || echo 0)
+if [ -f workers.json ]; then
+    T3=$(stat -f %m workers.json 2>/dev/null || stat -c %Y workers.json 2>/dev/null || echo 0)
+    sleep 6
+    T4=$(stat -f %m workers.json 2>/dev/null || stat -c %Y workers.json 2>/dev/null || echo 0)
 
-if [ "$T3" != "$T4" ]; then
-    echo -e "${GREEN}✓ System resumed — workers.json updating again${NC}"
-    echo -e "${GREEN}✓ Quorum restored successfully!${NC}"
-else
-    echo -e "${YELLOW}workers.json not updating yet (may need more time)${NC}"
+    if [ "$T3" != "$T4" ]; then
+        echo -e "${GREEN}✓ System resumed — workers.json updating again${NC}"
+        echo -e "${GREEN}✓ Quorum restored successfully!${NC}"
+    else
+        echo -e "${YELLOW}workers.json not updating yet (may need more time)${NC}"
+    fi
 fi
 
 echo -e "\nFinal workers.json state:"

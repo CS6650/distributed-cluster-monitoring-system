@@ -95,14 +95,14 @@ void sendHeartbeat(const std::string &nodeId, Logger &logger)
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
+    if (argc < 2)
     {
-        std::cerr << "Usage: ./worker_bin <workerID> <leaderDiscoveryPort>\n";
+        std::cerr << "Usage: ./worker_bin <workerID> \n";
         return 1;
     }
 
     std::string nodeId = argv[1];
-    LEADER_PORT = atoi(argv[2]);   // Set leader discovery port
+    LEADER_PORT = 6000;   // Set leader discovery port
 
     Logger logger(nodeId + ".log");
 
