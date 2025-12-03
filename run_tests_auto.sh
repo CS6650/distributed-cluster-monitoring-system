@@ -427,9 +427,6 @@ if [ -n "$CURRENT_LEADER" ]; then
     fi
 fi
 
-i
-done
-
 echo -e "  -> Total online managers: $ONLINE_COUNT"
 echo ""
 
