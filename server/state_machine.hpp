@@ -15,7 +15,6 @@ struct NodeState
     time_t last_seen;
     std::string status; // "active", "inactive", "dead", "unknown"
 
-    // Optional additional fields
     std::string ip_address;
     int cpu_usage;
     int memory_usage;

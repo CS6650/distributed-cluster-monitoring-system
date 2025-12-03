@@ -27,7 +27,7 @@ void RaftRpc::init(int port, RaftNode *node)
     // Start the server (spawns accept thread)
     srv->start();
 
-    // CRITICAL FIX: Wait for server to fully initialize
+    // Wait for server to fully initialize
     // This prevents "connect_failed" errors when other nodes try to reach us
     // immediately after we restart. The delay ensures:
     // 1. The server thread has spawned
@@ -55,7 +55,6 @@ int RaftRpc::portOf(const std::string &nodeId)
 
 void RaftRpc::cleanup()
 {
-    // Optional: Add cleanup method to properly shut down servers
     for (auto &pair : servers)
     {
         delete pair.second;
