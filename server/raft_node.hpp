@@ -13,6 +13,8 @@
 #include "../common/rpc.hpp"
 #include "../common/thread_pool.hpp"
 #include "state_machine.hpp"
+#include "persistent_state.hpp" // Add this include
+#include "../common/log_entry.hpp"
 
 using json = nlohmann::json;
 
@@ -23,18 +25,14 @@ enum class Role
     LEADER
 };
 
-struct LogEntry
-{
-    int term;
-    std::string command;
-};
-
 class RaftNode
 {
 public:
     RaftNode(std::string nodeId,
              int rpcPort,
              std::vector<std::string> peers);
+
+    ~RaftNode();
 
     std::string getId() const { return id; }
     void start();
@@ -80,17 +78,18 @@ public:
         return stateMachine.getNodeState(nodeId);
     }
 
-    ~RaftNode();
-
 private:
     // Identity
     std::string id;
     int port;
     std::vector<std::string> peerAddrs;
 
-    // Persistent state (on stable storage)
-    int currentTerm = 0;
-    std::string votedFor = "";
+    // Persistent state manager
+    PersistentState persistentState;
+
+    // In-memory cache of persistent state (for fast access)
+    int currentTerm;
+    std::string votedFor;
     std::vector<LogEntry> log;
 
     // Volatile state
@@ -123,6 +122,14 @@ private:
     void stopDiscoveryService();
     void runDiscoveryService();
 
+    // -------------------------------------------------
+    // Persistent state helper methods
+    // -------------------------------------------------
+    void updateTerm(int newTerm);
+    void updateVotedFor(const std::string &candidate);
+    void appendToLog(const LogEntry &entry);
+    void truncateLogFrom(int index);
+
     // Internal methods - ALL called with lock held
     void becomeFollower(int term);
     void becomeCandidate();
@@ -132,8 +139,6 @@ private:
     void startElection();
     void becomeLeaderInternal();
     void sendHeartbeatsInternal();
-
-    // NEW: Internal replication (called with lock held)
     void replicateLogInternal();
 };
 

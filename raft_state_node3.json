@@ -1,0 +1,414 @@
+{
+  "currentTerm": 6,
+  "log": [
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736089}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736089}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736094}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736094}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736099}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736099}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736104}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736104}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736109}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736109}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736114}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736114}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736119}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736119}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736124}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736124}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736129}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736129}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736134}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736134}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736139}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736139}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736144}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736144}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736149}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736150}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736154}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736155}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736159}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736160}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736164}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736165}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736169}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736170}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736174}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736175}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736179}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736180}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736184}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736185}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736189}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736190}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736194}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736195}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736199}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736200}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736204}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736205}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736209}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736210}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736214}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736215}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736219}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736220}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736224}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736225}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736229}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736230}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736234}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736235}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736239}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736240}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736244}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736245}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736249}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736250}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736254}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736255}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736259}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736260}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736264}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736265}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736269}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736270}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736274}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736275}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736279}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736280}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736284}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736285}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736289}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736290}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736294}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736295}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736299}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736300}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736304}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736305}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736309}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736310}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736314}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736315}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736319}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736320}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736324}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736325}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736329}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736330}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736334}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736335}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker2\",\"timestamp\":1764736339}",
+      "term": 6
+    },
+    {
+      "command": "{\"action\":\"HEARTBEAT\",\"node_id\":\"worker1\",\"timestamp\":1764736340}",
+      "term": 6
+    }
+  ],
+  "votedFor": ""
+}

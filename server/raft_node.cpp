@@ -27,8 +27,17 @@ RaftNode::RaftNode(std::string nodeId,
       id(nodeId),
       port(rpcPort),
       peerAddrs(peers),
+      persistentState(nodeId),
       logger("node_" + nodeId + ".log")
 {
+    // Load persisted state into memory cache
+    currentTerm = persistentState.getCurrentTerm();
+    votedFor = persistentState.getVotedFor();
+    log = persistentState.getLog();
+
+    logger.info("Loaded persistent state: term=" + std::to_string(currentTerm) +
+                ", votedFor=" + votedFor +
+                ", log entries=" + std::to_string(log.size()));
 }
 
 void RaftNode::start()
@@ -54,11 +63,46 @@ RaftNode::~RaftNode()
     }
 }
 
+// ============================================================================
+// PERSISTENT STATE HELPER METHODS
+// ============================================================================
+
+void RaftNode::updateTerm(int newTerm)
+{
+    // Must be called WITH lock held
+    currentTerm = newTerm;
+    persistentState.setCurrentTerm(newTerm);
+}
+
+void RaftNode::updateVotedFor(const std::string &candidate)
+{
+    // Must be called WITH lock held
+    votedFor = candidate;
+    persistentState.setVotedFor(candidate);
+}
+
+void RaftNode::appendToLog(const LogEntry &entry)
+{
+    // Must be called WITH lock held
+    log.push_back(entry);
+    persistentState.appendLog(entry);
+}
+
+void RaftNode::truncateLogFrom(int index)
+{
+    // Must be called WITH lock held
+    log.erase(log.begin() + index, log.end());
+    persistentState.truncateLog(index);
+}
+
+// ============================================================================
+// DISCOVERY SERVICE
+// ============================================================================
+
 void RaftNode::startDiscoveryService()
 {
     std::lock_guard<std::mutex> lock(discoveryMutex);
 
-    // Already running - don't start another
     if (runningDiscoveryService)
     {
         logger.info("Discovery service already running");
@@ -66,8 +110,6 @@ void RaftNode::startDiscoveryService()
     }
 
     const int DISCOVERY_PORT = 6000;
-    // int DISCOVERY_PORT = port + 1000; // Example: 5001 -> 6001
-
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0)
@@ -106,15 +148,13 @@ void RaftNode::startDiscoveryService()
     discoverySocket = server_fd;
     runningDiscoveryService = true;
 
-
     logger.info("✓ Leader discovery service started on port 6000");
-    std::cout << "✓ [DISCOVERY] " << id << " now accepting worker connections on port 6000\n" 
+    std::cout << "✓ [DISCOVERY] " << id << " now accepting worker connections on port 6000\n"
               << std::flush;
 
-    // Start discovery thread (joinable, not detached)
     if (discoveryThread.joinable())
     {
-        discoveryThread.join(); // Clean up old thread if exists
+        discoveryThread.join();
     }
 
     discoveryThread = std::thread(&RaftNode::runDiscoveryService, this);
@@ -130,17 +170,15 @@ void RaftNode::stopDiscoveryService()
     }
 
     logger.info("✗ Stopping discovery service (no longer leader)");
-
-    std::cout << "✗ [DISCOVERY] " << id << " stopped accepting worker connections\n" 
+    std::cout << "✗ [DISCOVERY] " << id << " stopped accepting worker connections\n"
               << std::flush;
 
     runningDiscoveryService = false;
 
-    // Close socket to unblock accept()
     int sock = discoverySocket.exchange(-1);
     if (sock >= 0)
     {
-        shutdown(sock, SHUT_RDWR); // Force immediate close
+        shutdown(sock, SHUT_RDWR);
         close(sock);
     }
 }
@@ -160,9 +198,8 @@ void RaftNode::runDiscoveryService()
         {
             if (!runningDiscoveryService)
             {
-                break; // Clean shutdown
+                break;
             }
-            // Accept failed, check if socket is still valid
             if (discoverySocket == -1)
             {
                 break;
@@ -170,14 +207,12 @@ void RaftNode::runDiscoveryService()
             continue;
         }
 
-        // Set timeout on client socket
         struct timeval timeout;
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
         setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
         setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
-        // Handle connection in separate thread
         std::thread([this, client_fd]()
                     {
             char buffer[1024];
@@ -194,18 +229,15 @@ void RaftNode::runDiscoveryService()
                         std::string workerId = msg.substr(spacePos + 1);
                         workerId.erase(workerId.find_last_not_of(" \n\r\t") + 1);
                         
-                        // Thread-safe check: Are we still the leader?
                         bool isLeader = (role.load() == Role::LEADER);
                         
                         if (isLeader) {
-                            // Create heartbeat command
                             json command = {
                                 {"action", "HEARTBEAT"},
                                 {"node_id", workerId},
                                 {"timestamp", std::time(nullptr)}
                             };
                             
-                            // Submit to RAFT log (this method handles its own locking)
                             bool success = submitCommand(command.dump());
                             
                             if (success) {
@@ -218,7 +250,6 @@ void RaftNode::runDiscoveryService()
                                 send(client_fd, response.c_str(), response.size(), 0);
                             }
                         } else {
-                            // Lost leadership while processing
                             std::string response = "NOT_LEADER\n";
                             send(client_fd, response.c_str(), response.size(), 0);
                         }
@@ -227,11 +258,15 @@ void RaftNode::runDiscoveryService()
             }
             
             close(client_fd); })
-            .detach(); // These handler threads can be detached since they're short-lived
+            .detach();
     }
 
     logger.info("Discovery service thread exiting");
 }
+
+// ============================================================================
+// RAFT CORE - ELECTIONS AND ROLE TRANSITIONS
+// ============================================================================
 
 void RaftNode::resetElectionTimer()
 {
@@ -243,7 +278,6 @@ void RaftNode::resetElectionTimer()
                         {
         std::lock_guard<std::mutex> lock(mtx);
         
-        // Only start an election if we're a FOLLOWER or CANDIDATE
         if (role == Role::FOLLOWER || role == Role::CANDIDATE) {
             logger.info("Election timeout triggered (role=" + 
                        std::to_string((int)role.load()) + ")");
@@ -257,19 +291,18 @@ void RaftNode::becomeFollower(int term)
     bool wasLeader = (role == Role::LEADER);
 
     role = Role::FOLLOWER;
-    currentTerm = term;
-    votedFor = "";
-    heartbeatTimer.cancel(); // Stop sending heartbeats if we were leader
+
+    // ✓ PERSIST: Update term and clear vote BEFORE any response
+    updateTerm(term);
+    updateVotedFor("");
+
+    heartbeatTimer.cancel();
     logger.info("Transition -> FOLLOWER (term " + std::to_string(term) + ")");
 
-    // Reset election timer when becoming follower
     resetElectionTimer();
 
-    // Stop discovery service AFTER releasing the lock to avoid deadlock
-    // We set the flag above so no new heartbeats are accepted
     if (wasLeader)
     {
-        // Unlock mutex before stopping discovery service
         mtx.unlock();
         stopDiscoveryService();
         mtx.lock();
@@ -292,18 +325,19 @@ void RaftNode::startElection()
 {
     // Called WITH lock held
     role = Role::CANDIDATE;
-    currentTerm++;
-    votedFor = id;
+
+    // ✓ PERSIST: Increment term and vote for self BEFORE sending RPCs
+    updateTerm(currentTerm + 1);
+    updateVotedFor(id);
 
     int term = currentTerm;
     logger.info("Transition -> CANDIDATE (term " + std::to_string(term) + ")");
 
-    resetElectionTimer(); // start timer for this election
+    resetElectionTimer();
 
     auto voteCount = std::make_shared<std::atomic<int>>(1);
     int needed = (peerAddrs.size() + 1) / 2 + 1;
 
-    // Check if we already have majority (single node cluster)
     if (*voteCount >= needed)
     {
         logger.info("Single-node cluster detected, becoming leader immediately");
@@ -316,7 +350,6 @@ void RaftNode::startElection()
 
     auto electionWon = std::make_shared<std::atomic<bool>>(false);
 
-    // Send RequestVote RPCs using thread pool
     for (const auto &peerSpec : peerAddrs)
     {
         size_t colon = peerSpec.find(':');
@@ -353,13 +386,11 @@ void RaftNode::startElection()
 
                 std::lock_guard<std::mutex> lock(mtx);
 
-                // Step down if higher term seen
                 if (respTerm > currentTerm) {
                     becomeFollower(respTerm);
                     return;
                 }
 
-                // Outdated election
                 if (role != Role::CANDIDATE || currentTerm != term)
                     return;
 
@@ -387,16 +418,15 @@ void RaftNode::becomeLeaderInternal()
     if (role == Role::LEADER)
         return;
 
-    // Cancel election timer when becoming leader
     electionTimer.cancel();
 
     role = Role::LEADER;
 
     logger.info("Transition -> LEADER (term " + std::to_string(currentTerm) + ")");
-    std::cout << "✓ [LEADER] " << id << " elected as leader (term " 
-              << currentTerm << ")\n" << std::flush;
+    std::cout << "✓ [LEADER] " << id << " elected as leader (term "
+              << currentTerm << ")\n"
+              << std::flush;
 
-    // Initialize leader state
     for (const auto &peerSpec : peerAddrs)
     {
         size_t colonPos = peerSpec.find(':');
@@ -407,51 +437,16 @@ void RaftNode::becomeLeaderInternal()
         matchIndex[peerId] = -1;
     }
 
-    // Send immediate heartbeat, then start periodic timer
     sendHeartbeatsInternal();
 
-    // Start discovery service AFTER releasing lock to avoid blocking
-    // We need to unlock, start service, then relock
     mtx.unlock();
     startDiscoveryService();
     mtx.lock();
 }
 
-bool RaftNode::submitCommand(const std::string &command)
-{
-    std::lock_guard<std::mutex> lock(mtx);
-
-    if (role != Role::LEADER)
-    {
-        logger.warn("submitCommand rejected: not leader");
-        return false;
-    }
-
-    // Append to local log
-    LogEntry entry;
-    entry.term = currentTerm;
-    entry.command = command;
-    log.push_back(entry);
-
-    int newEntryIndex = log.size() - 1;
-    logger.info("Command submitted to log at index " +
-                std::to_string(newEntryIndex) +
-                ": " + command);
-
-    // Trigger replication to followers
-    replicateLogInternal();
-
-    // CRITICAL FIX: For single-node clusters, immediately try to commit
-    // since there are no peers to replicate to
-    if (peerAddrs.empty())
-    {
-        logger.info("Single-node cluster: immediately committing entry " +
-                    std::to_string(newEntryIndex));
-        applyStateMachine();
-    }
-
-    return true;
-}
+// ============================================================================
+// RAFT RPC HANDLERS
+// ============================================================================
 
 json RaftNode::onRequestVote(const json &req)
 {
@@ -466,7 +461,6 @@ json RaftNode::onRequestVote(const json &req)
     resp["term"] = currentTerm;
     resp["voteGranted"] = false;
 
-    // Reject if term is older
     if (term < currentTerm)
     {
         logger.info("Rejecting vote for " + candidate + " (stale term " +
@@ -474,14 +468,12 @@ json RaftNode::onRequestVote(const json &req)
         return resp;
     }
 
-    // Step down if we see a higher term
     if (term > currentTerm)
     {
         becomeFollower(term);
         resp["term"] = currentTerm;
     }
 
-    // Check if log is up-to-date
     int ourLastLogTerm = log.empty() ? 0 : log.back().term;
     int ourLastLogIndex = (int)log.size() - 1;
 
@@ -489,13 +481,12 @@ json RaftNode::onRequestVote(const json &req)
         (lastLogTerm > ourLastLogTerm) ||
         (lastLogTerm == ourLastLogTerm && lastLogIndex >= ourLastLogIndex);
 
-    // Grant vote if we haven't voted yet and candidate's log is up-to-date
     if ((votedFor == "" || votedFor == candidate) && logUpToDate)
     {
-        votedFor = candidate;
+        // ✓ PERSIST: Vote BEFORE sending response
+        updateVotedFor(candidate);
         resp["voteGranted"] = true;
 
-        // Reset election timer when granting a vote
         resetElectionTimer();
 
         logger.info("Granting vote to " + candidate + " for term " + std::to_string(term));
@@ -519,7 +510,6 @@ json RaftNode::onAppendEntries(const json &req)
     resp["term"] = currentTerm;
     resp["success"] = false;
 
-    // Reject if term is older
     if (term < currentTerm)
     {
         logger.info("Rejecting AppendEntries from " + leaderId + " (stale term " +
@@ -527,7 +517,6 @@ json RaftNode::onAppendEntries(const json &req)
         return resp;
     }
 
-    // Valid heartbeat from leader - step down and reset timer
     if (term > currentTerm)
     {
         if (role == Role::CANDIDATE || role == Role::LEADER)
@@ -539,7 +528,6 @@ json RaftNode::onAppendEntries(const json &req)
     }
     else if (term == currentTerm)
     {
-        // CRITICAL: Reset election timer on valid AppendEntries
         if (role == Role::CANDIDATE)
         {
             logger.info("Stepping down: recognized " + leaderId + " as leader");
@@ -547,11 +535,9 @@ json RaftNode::onAppendEntries(const json &req)
         }
         else if (role == Role::LEADER)
         {
-            // This should be impossible in correct RAFT, but handle defensively
             logger.warn("SPLIT BRAIN DETECTED: Received AppendEntries from " + leaderId +
                         " while also being leader in term " + std::to_string(term));
 
-            // Compare node IDs lexicographically to break tie deterministically
             if (leaderId < id)
             {
                 logger.warn("Stepping down: " + leaderId + " < " + id + " (lexicographic)");
@@ -566,28 +552,23 @@ json RaftNode::onAppendEntries(const json &req)
         }
         else
         {
-            // Reset timer to prevent election timeout
             resetElectionTimer();
         }
     }
 
-    // Handle log replication (if entries are present)
     if (req.contains("prevLogIndex") && req.contains("prevLogTerm") &&
         req.contains("entries"))
     {
-
         int prevLogIndex = req["prevLogIndex"];
         int prevLogTerm = req["prevLogTerm"];
         json entries = req["entries"];
 
-        // Check if we have the previous log entry
         if (prevLogIndex >= 0)
         {
             if (prevLogIndex >= (int)log.size() ||
                 log[prevLogIndex].term != prevLogTerm)
             {
                 resetElectionTimer();
-                // Log doesn't match - return more info to help leader find match point
                 resp["success"] = false;
                 resp["conflictIndex"] = std::min(prevLogIndex, (int)log.size());
                 logger.info("Log inconsistency at index " + std::to_string(prevLogIndex) +
@@ -596,32 +577,29 @@ json RaftNode::onAppendEntries(const json &req)
             }
         }
 
-        // Append new entries
+        // ✓ PERSIST: Log modifications are persisted via helper methods
         int index = prevLogIndex + 1;
         for (const auto &entry : entries)
         {
             if (index < (int)log.size())
             {
-                // Check for conflicts
                 if (log[index].term != entry["term"])
                 {
-                    // Delete conflicting entry and all that follow
-                    log.erase(log.begin() + index, log.end());
-                    log.push_back({entry["term"], entry["command"]});
+                    truncateLogFrom(index);
+                    appendToLog({entry["term"], entry["command"]});
                     logger.info("Replaced conflicting entry at index " + std::to_string(index));
                 }
+                // else: entry already exists with same term, skip it
             }
             else
             {
-                // Append new entry
-                log.push_back({entry["term"], entry["command"]});
+                appendToLog({entry["term"], entry["command"]});
                 logger.info("Appended entry at index " + std::to_string(index) +
                             ": " + std::string(entry["command"]));
             }
             index++;
         }
 
-        // Update commit index
         if (req.contains("leaderCommit"))
         {
             int leaderCommit = req["leaderCommit"];
@@ -632,7 +610,6 @@ json RaftNode::onAppendEntries(const json &req)
                 logger.info("Updated commitIndex from " + std::to_string(oldCommit) +
                             " to " + std::to_string(commitIndex));
 
-                // Apply newly committed entries
                 applyStateMachine();
             }
         }
@@ -641,6 +618,43 @@ json RaftNode::onAppendEntries(const json &req)
     resp["success"] = true;
     resp["term"] = currentTerm;
     return resp;
+}
+
+// ============================================================================
+// LEADER OPERATIONS
+// ============================================================================
+
+bool RaftNode::submitCommand(const std::string &command)
+{
+    std::lock_guard<std::mutex> lock(mtx);
+
+    if (role != Role::LEADER)
+    {
+        logger.warn("submitCommand rejected: not leader");
+        return false;
+    }
+
+    // ✓ PERSIST: Append to log BEFORE replication
+    LogEntry entry;
+    entry.term = currentTerm;
+    entry.command = command;
+    appendToLog(entry);
+
+    int newEntryIndex = log.size() - 1;
+    logger.info("Command submitted to log at index " +
+                std::to_string(newEntryIndex) +
+                ": " + command);
+
+    replicateLogInternal();
+
+    if (peerAddrs.empty())
+    {
+        logger.info("Single-node cluster: immediately committing entry " +
+                    std::to_string(newEntryIndex));
+        applyStateMachine();
+    }
+
+    return true;
 }
 
 void RaftNode::sendHeartbeats()
@@ -658,12 +672,10 @@ void RaftNode::sendHeartbeatsInternal()
     int term = currentTerm;
     std::string leaderId = id;
 
-    // For single-node clusters, just try to commit and return
     if (peerAddrs.empty())
     {
         applyStateMachine();
 
-        // Still schedule next heartbeat for consistency
         heartbeatTimer.cancel();
         heartbeatTimer.start(50, [this]()
                              {
@@ -676,7 +688,6 @@ void RaftNode::sendHeartbeatsInternal()
 
     for (const auto &peerSpec : peerAddrs)
     {
-        // Parse "nodeX:port" format
         size_t colonPos = peerSpec.find(':');
         if (colonPos == std::string::npos)
         {
@@ -685,16 +696,12 @@ void RaftNode::sendHeartbeatsInternal()
         std::string peerId = peerSpec.substr(0, colonPos);
         int peerPort = std::stoi(peerSpec.substr(colonPos + 1));
 
-        // =======================================================
-        // KEY FIX: Limit entries per RPC to avoid buffer overflow
-        // =======================================================
         int nextIdx = nextIndex[peerId];
         int prevLogIndex = nextIdx - 1;
         int prevLogTerm = (prevLogIndex >= 0 && prevLogIndex < (int)log.size())
                               ? log[prevLogIndex].term
                               : 0;
 
-        // Collect entries - LIMIT TO MAX_ENTRIES_PER_RPC
         json entries = json::array();
         int entriesCount = 0;
         for (int i = nextIdx; i < (int)log.size() && entriesCount < MAX_ENTRIES_PER_RPC; i++)
@@ -737,12 +744,10 @@ void RaftNode::sendHeartbeatsInternal()
                         return;
                     }
                     
-                    // Ignore stale responses
                     if (role != Role::LEADER || currentTerm != term)
                         return;
                     
                     if (success && entriesCount > 0) {
-                        // Update indices on successful replication
                         matchIndex[peerId] = nextIdx + entriesCount - 1;
                         nextIndex[peerId] = matchIndex[peerId] + 1;
                         
@@ -750,18 +755,14 @@ void RaftNode::sendHeartbeatsInternal()
                                    " (matchIndex=" + std::to_string(matchIndex[peerId]) + 
                                    ", remaining=" + std::to_string((int)log.size() - nextIndex[peerId]) + ")");
                         
-                        // Try to advance commit index
                         applyStateMachine();
                         
-                        // If there are more entries to send, trigger another round
                         if (nextIndex[peerId] < (int)log.size()) {
                             logger.info("More entries to replicate to " + peerId + 
                                        ", will send in next heartbeat");
                         }
                     } else if (!success) {
-                        // Decrement nextIndex on failure
                         if (nextIndex[peerId] > 0) {
-                            // Use conflictIndex if provided for faster recovery
                             if (resp.contains("conflictIndex")) {
                                 int conflictIdx = resp["conflictIndex"];
                                 nextIndex[peerId] = std::max(0, conflictIdx);
@@ -781,7 +782,6 @@ void RaftNode::sendHeartbeatsInternal()
             } });
     }
 
-    // Schedule next heartbeat
     heartbeatTimer.cancel();
     heartbeatTimer.start(50, [this]()
                          {
@@ -799,7 +799,6 @@ void RaftNode::replicateLog()
         return;
     }
 
-    // For single-node clusters, just commit immediately
     if (peerAddrs.empty())
     {
         applyStateMachine();
@@ -826,7 +825,6 @@ void RaftNode::replicateLog()
                               ? log[prevLogIndex].term
                               : 0;
 
-        // Collect entries - LIMIT TO MAX_ENTRIES_PER_RPC
         json entries = json::array();
         int entriesCount = 0;
         for (int i = nextIdx; i < (int)log.size() && entriesCount < MAX_ENTRIES_PER_RPC; i++)
@@ -858,18 +856,15 @@ void RaftNode::replicateLog()
 
                 std::lock_guard<std::mutex> lock(mtx);
 
-                // Step down if higher term
                 if (respTerm > currentTerm) {
                     becomeFollower(respTerm);
                     return;
                 }
 
-                // Ignore stale responses
                 if (role != Role::LEADER || currentTerm != term)
                     return;
 
                 if (success) {
-                    // Update nextIndex and matchIndex
                     if (entriesCount > 0) {
                         matchIndex[peerId] = nextIdx + entriesCount - 1;
                         nextIndex[peerId] = matchIndex[peerId] + 1;
@@ -877,13 +872,10 @@ void RaftNode::replicateLog()
                         logger.info("Log replication success to " + peerId + 
                                    " (matchIndex=" + std::to_string(matchIndex[peerId]) + ")");
                         
-                        // Try to advance commit index
                         applyStateMachine();
                     }
                 } else {
-                    // Decrement nextIndex and retry
                     if (nextIndex[peerId] > 0) {
-                        // Use conflictIndex if provided
                         if (resp.contains("conflictIndex")) {
                             int conflictIdx = resp["conflictIndex"];
                             nextIndex[peerId] = std::max(0, conflictIdx);
@@ -913,7 +905,6 @@ void RaftNode::replicateLogInternal()
         return;
     }
 
-    // For single-node clusters, just commit immediately
     if (peerAddrs.empty())
     {
         applyStateMachine();
@@ -940,7 +931,6 @@ void RaftNode::replicateLogInternal()
                               ? log[prevLogIndex].term
                               : 0;
 
-        // Collect entries - LIMIT TO MAX_ENTRIES_PER_RPC
         json entries = json::array();
         int entriesCount = 0;
         for (int i = nextIdx; i < (int)log.size() && entriesCount < MAX_ENTRIES_PER_RPC; i++)
@@ -972,18 +962,15 @@ void RaftNode::replicateLogInternal()
 
                 std::lock_guard<std::mutex> lock(mtx);
 
-                // Step down if higher term
                 if (respTerm > currentTerm) {
                     becomeFollower(respTerm);
                     return;
                 }
 
-                // Ignore stale responses
                 if (role != Role::LEADER || currentTerm != term)
                     return;
 
                 if (success) {
-                    // Update nextIndex and matchIndex
                     if (entriesCount > 0) {
                         matchIndex[peerId] = nextIdx + entriesCount - 1;
                         nextIndex[peerId] = matchIndex[peerId] + 1;
@@ -991,13 +978,10 @@ void RaftNode::replicateLogInternal()
                         logger.info("Log replication success to " + peerId + 
                                    " (matchIndex=" + std::to_string(matchIndex[peerId]) + ")");
                         
-                        // Try to advance commit index
                         applyStateMachine();
                     }
                 } else {
-                    // Decrement nextIndex and retry
                     if (nextIndex[peerId] > 0) {
-                        // Use conflictIndex if provided
                         if (resp.contains("conflictIndex")) {
                             int conflictIdx = resp["conflictIndex"];
                             nextIndex[peerId] = std::max(0, conflictIdx);
@@ -1022,13 +1006,12 @@ void RaftNode::applyStateMachine()
 {
     // Must be called WITH lock held
 
-    // Find highest N where majority of matchIndex[i] >= N
     for (int n = (int)log.size() - 1; n > commitIndex; n--)
     {
         if (log[n].term != currentTerm)
-            continue; // Only commit entries from current term
+            continue;
 
-        int replicationCount = 1; // Count self
+        int replicationCount = 1;
         for (const auto &pair : matchIndex)
         {
             if (pair.second >= n)
@@ -1040,7 +1023,6 @@ void RaftNode::applyStateMachine()
         int majority = (peerAddrs.size() + 1) / 2 + 1;
         if (replicationCount >= majority)
         {
-            // Advance commit index
             int oldCommit = commitIndex;
             commitIndex = n;
             logger.info("Advanced commitIndex from " + std::to_string(oldCommit) +
@@ -1049,7 +1031,6 @@ void RaftNode::applyStateMachine()
         }
     }
 
-    // Apply all committed but unapplied entries to the state machine
     while (lastApplied < commitIndex)
     {
         lastApplied++;
@@ -1059,7 +1040,6 @@ void RaftNode::applyStateMachine()
                     " (index=" + std::to_string(lastApplied) +
                     ", term=" + std::to_string(entry.term) + ")");
 
-        // Apply the command to the state machine
         stateMachine.apply(entry.command);
     }
 }
