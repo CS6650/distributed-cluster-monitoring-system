@@ -1,0 +1,76 @@
+{
+  "workers": [
+    {
+      "id": "worker1",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker10",
+      "online": true,
+      "last_seen_seconds_ago": 3,
+      "status": "active"
+    },
+    {
+      "id": "worker11",
+      "online": true,
+      "last_seen_seconds_ago": 3,
+      "status": "active"
+    },
+    {
+      "id": "worker12",
+      "online": true,
+      "last_seen_seconds_ago": 3,
+      "status": "active"
+    },
+    {
+      "id": "worker2",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker3",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker4",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker5",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker6",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker7",
+      "online": true,
+      "last_seen_seconds_ago": 2,
+      "status": "active"
+    },
+    {
+      "id": "worker8",
+      "online": true,
+      "last_seen_seconds_ago": 3,
+      "status": "active"
+    },
+    {
+      "id": "worker9",
+      "online": true,
+      "last_seen_seconds_ago": 3,
+      "status": "active"
+    }
+  ]
+}
